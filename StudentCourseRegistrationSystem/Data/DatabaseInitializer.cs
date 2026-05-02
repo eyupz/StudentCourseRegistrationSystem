@@ -7,115 +7,113 @@ namespace StudentCourseRegistrationSystem.Data
     {
         public static void Initialize(AppDbContext context)
         {
-            // Ensure the database is created
-            context.Database.EnsureCreated();
-
-            // Look for any roles.
-            if (context.Roles.Any())
+            // Add seed data only if database is empty
+            if (context.Roles.Any() || context.Users.Any())
             {
-                return;   // DB has been seeded
+                return;
             }
 
-            // 1. Seed Roles
-            var roles = new Role[]
-            {
-                new Role { Name = "Admin" },
-                new Role { Name = "Staff" },
-                new Role { Name = "Instructor" },
-                new Role { Name = "Student" }
-            };
-            context.Roles.AddRange(roles);
+            // Add roles
+            var adminRole = new Role { Name = "Admin" };
+            var staffRole = new Role { Name = "Staff" };
+            var instructorRole = new Role { Name = "Instructor" };
+            var studentRole = new Role { Name = "Student" };
+            
+            context.Roles.AddRange(adminRole, staffRole, instructorRole, studentRole);
             context.SaveChanges();
 
-            // 2. Seed Default Admin User
+            // Add default admin user
             var adminUser = new User
             {
                 Username = "admin",
-                PasswordHash = "admin123", // In a real app, hash this!
-                Email = "admin@university.edu",
-                RoleId = roles.Single(r => r.Name == "Admin").Id
+                PasswordHash = "admin123",
+                Email = "admin@school.local",
+                RoleId = adminRole.Id
+                // IsActive: true is omitted because the User model does not contain an IsActive property.
+                // Omitting it ensures the code compiles with your existing models.
             };
             context.Users.Add(adminUser);
             context.SaveChanges();
 
-            // 3. Seed Sample Departments
-            var departments = new Department[]
-            {
-                new Department { Name = "Computer Engineering", Code = "CENG" },
-                new Department { Name = "Software Engineering", Code = "SENG" },
-                new Department { Name = "Mathematics", Code = "MATH" }
-            };
-            context.Departments.AddRange(departments);
+            // Add sample departments
+            var csDepartment = new Department { Name = "Computer Science", Code = "CS" };
+            var mathDepartment = new Department { Name = "Mathematics", Code = "MATH" };
+            context.Departments.AddRange(csDepartment, mathDepartment);
             context.SaveChanges();
 
-            // 4. Seed Sample Semester
-            var semester = new Semester { Name = "Fall 2026", IsActive = true };
-            context.Semesters.Add(semester);
+            // Add sample instructor
+            var sampleInstructor = new Instructor { FirstName = "John", LastName = "Doe" };
+            context.Instructors.Add(sampleInstructor);
             context.SaveChanges();
 
-            // 5. Seed Sample Instructor
-            var instructor = new Instructor { FirstName = "Alan", LastName = "Turing" };
-            context.Instructors.Add(instructor);
-            context.SaveChanges();
-            
-            // Add Instructor User
             var instructorUser = new User
             {
-                Username = "aturing",
+                Username = "jdoe",
                 PasswordHash = "password123",
-                Email = "aturing@university.edu",
-                RoleId = roles.Single(r => r.Name == "Instructor").Id,
-                InstructorId = instructor.Id
+                Email = "jdoe@school.local",
+                RoleId = instructorRole.Id,
+                InstructorId = sampleInstructor.Id
             };
             context.Users.Add(instructorUser);
             context.SaveChanges();
 
-            // 6. Seed Sample Courses
-            var courses = new Course[]
+            // Add sample student
+            var sampleStudent = new Student
             {
-                new Course 
-                { 
-                    CourseCode = "CENG101", 
-                    Title = "Introduction to Programming", 
-                    Credits = 4, 
-                    Capacity = 50,
-                    DepartmentId = departments.Single(d => d.Code == "CENG").Id,
-                    InstructorId = instructor.Id
-                },
-                new Course 
-                { 
-                    CourseCode = "CENG201", 
-                    Title = "Data Structures", 
-                    Credits = 4, 
-                    Capacity = 40,
-                    DepartmentId = departments.Single(d => d.Code == "CENG").Id,
-                    InstructorId = instructor.Id
-                }
+                StudentNumber = "S12345",
+                FirstName = "Jane",
+                LastName = "Smith",
+                DepartmentId = csDepartment.Id
             };
-            context.Courses.AddRange(courses);
+            context.Students.Add(sampleStudent);
             context.SaveChanges();
 
-            // 7. Seed Sample Student
-            var student = new Student
-            {
-                StudentNumber = "20260001",
-                FirstName = "Grace",
-                LastName = "Hopper",
-                DepartmentId = departments.Single(d => d.Code == "CENG").Id
-            };
-            context.Students.Add(student);
-            context.SaveChanges();
-            
-            // Add Student User
             var studentUser = new User
             {
-                Username = "20260001",
+                Username = "jsmith",
                 PasswordHash = "password123",
-                Email = "ghopper@student.university.edu",
-                RoleId = roles.Single(r => r.Name == "Student").Id,
-                StudentId = student.Id
+                Email = "jsmith@school.local",
+                RoleId = studentRole.Id,
+                StudentId = sampleStudent.Id
             };
             context.Users.Add(studentUser);
+            context.SaveChanges();
+
+            // Add sample semester
+            var sampleSemester = new Semester { Name = "Fall 2026", IsActive = true };
+            context.Semesters.Add(sampleSemester);
+            context.SaveChanges();
+
+            // Add sample courses
+            var course1 = new Course
+            {
+                CourseCode = "CS101",
+                Title = "Introduction to Programming",
+                Credits = 3,
+                Capacity = 30,
+                DepartmentId = csDepartment.Id,
+                InstructorId = sampleInstructor.Id
+            };
+            var course2 = new Course
+            {
+                CourseCode = "MATH101",
+                Title = "Calculus I",
+                Credits = 4,
+                Capacity = 40,
+                DepartmentId = mathDepartment.Id,
+                InstructorId = sampleInstructor.Id
+            };
+            context.Courses.AddRange(course1, course2);
+            context.SaveChanges();
+
+            // Add sample enrollment
+            var sampleEnrollment = new Enrollment
+            {
+                StudentId = sampleStudent.Id,
+                CourseId = course1.Id,
+                SemesterId = sampleSemester.Id
+            };
+            context.Enrollments.Add(sampleEnrollment);
             context.SaveChanges();
         }
     }
