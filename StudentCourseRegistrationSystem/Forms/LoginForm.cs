@@ -10,6 +10,7 @@ namespace StudentCourseRegistrationSystem.Forms
         private TextBox txtPassword;
         private Button btnLogin;
         private Label lblTitle;
+        private Panel pnlCard;
 
         public LoginForm()
         {
@@ -19,49 +20,62 @@ namespace StudentCourseRegistrationSystem.Forms
         private void InitializeComponent()
         {
             this.Text = "Login - Student Course Registration System";
-            this.Size = new Size(400, 300);
+            this.Size = new Size(500, 400);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
+            this.BackColor = Color.FromArgb(236, 240, 241); // Light grayish background
+
+            pnlCard = new Panel
+            {
+                Size = new Size(350, 250),
+                Location = new Point(65, 50),
+                BackColor = Color.White,
+                Padding = new Padding(20)
+            };
 
             lblTitle = new Label
             {
-                Text = "System Login",
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
+                Text = "Welcome Back",
+                Font = new Font("Segoe UI Semibold", 18),
+                ForeColor = Color.FromArgb(44, 62, 80),
                 AutoSize = true,
-                Location = new Point(130, 30)
+                Location = new Point(80, 20)
             };
 
-            var lblUsername = new Label { Text = "Username:", Location = new Point(50, 90), AutoSize = true };
-            txtUsername = new TextBox { Location = new Point(150, 90), Width = 180 };
+            var lblUsername = new Label { Text = "Username", Font = new Font("Segoe UI", 10), ForeColor = Color.Gray, Location = new Point(40, 70), AutoSize = true };
+            txtUsername = new TextBox { Location = new Point(40, 95), Width = 270, Font = new Font("Segoe UI", 11) };
 
-            var lblPassword = new Label { Text = "Password:", Location = new Point(50, 130), AutoSize = true };
-            txtPassword = new TextBox { Location = new Point(150, 130), Width = 180, PasswordChar = '*' };
+            var lblPassword = new Label { Text = "Password", Font = new Font("Segoe UI", 10), ForeColor = Color.Gray, Location = new Point(40, 130), AutoSize = true };
+            txtPassword = new TextBox { Location = new Point(40, 155), Width = 270, Font = new Font("Segoe UI", 11), PasswordChar = '•' };
 
             btnLogin = new Button
             {
-                Text = "Login",
-                Location = new Point(150, 180),
-                Width = 100,
+                Text = "LOGIN",
+                Location = new Point(40, 200),
+                Width = 270,
                 Height = 35,
-                BackColor = Color.FromArgb(0, 122, 204),
+                BackColor = Color.FromArgb(26, 188, 156), // Teal
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+                Font = new Font("Segoe UI Semibold", 11),
+                Cursor = Cursors.Hand
             };
+            btnLogin.FlatAppearance.BorderSize = 0;
             btnLogin.Click += BtnLogin_Click;
 
-            this.Controls.Add(lblTitle);
-            this.Controls.Add(lblUsername);
-            this.Controls.Add(txtUsername);
-            this.Controls.Add(lblPassword);
-            this.Controls.Add(txtPassword);
-            this.Controls.Add(btnLogin);
+            pnlCard.Controls.Add(lblTitle);
+            pnlCard.Controls.Add(lblUsername);
+            pnlCard.Controls.Add(txtUsername);
+            pnlCard.Controls.Add(lblPassword);
+            pnlCard.Controls.Add(txtPassword);
+            pnlCard.Controls.Add(btnLogin);
+
+            this.Controls.Add(pnlCard);
         }
 
         private void BtnLogin_Click(object sender, EventArgs e)
         {
-            // TODO: Call AuthService to validate user
             if (!string.IsNullOrWhiteSpace(txtUsername.Text))
             {
                 this.Hide();
