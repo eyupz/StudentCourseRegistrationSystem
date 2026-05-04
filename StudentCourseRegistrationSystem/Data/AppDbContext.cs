@@ -15,7 +15,7 @@ namespace StudentCourseRegistrationSystem.Data
         public DbSet<Course> Courses { get; set; }
         public DbSet<Semester> Semesters { get; set; }
         public DbSet<Enrollment> Enrollments { get; set; }
-        public DbSet<Grade> Grades { get; set; }
+        public DbSet<Attendance> Attendances { get; set; }
 
         public AppDbContext()
         {
@@ -110,6 +110,13 @@ namespace StudentCourseRegistrationSystem.Data
                 .HasForeignKey(c => c.InstructorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Course self-referential prerequisite
+            modelBuilder.Entity<Course>()
+                .HasOne(c => c.PrerequisiteCourse)
+                .WithMany()
+                .HasForeignKey(c => c.PrerequisiteCourseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Student 1 - N Enrollments
             modelBuilder.Entity<Enrollment>()
                 .HasOne(e => e.Student)
@@ -131,11 +138,11 @@ namespace StudentCourseRegistrationSystem.Data
                 .HasForeignKey(e => e.SemesterId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Enrollment 1 - 1 Grade
-            modelBuilder.Entity<Grade>()
-                .HasOne(g => g.Enrollment)
-                .WithOne(e => e.Grade)
-                .HasForeignKey<Grade>(g => g.EnrollmentId)
+            // Enrollment 1 - N Attendance
+            modelBuilder.Entity<Attendance>()
+                .HasOne(a => a.Enrollment)
+                .WithMany(e => e.Attendances)
+                .HasForeignKey(a => a.EnrollmentId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // User 1 - 1 Student
@@ -151,6 +158,7 @@ namespace StudentCourseRegistrationSystem.Data
                 .WithOne(i => i.User)
                 .HasForeignKey<User>(u => u.InstructorId)
                 .OnDelete(DeleteBehavior.SetNull);
+
         }
     }
 }

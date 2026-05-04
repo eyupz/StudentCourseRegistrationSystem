@@ -1,14 +1,16 @@
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
+using StudentCourseRegistrationSystem.Data;
+using StudentCourseRegistrationSystem.Services;
 
 namespace StudentCourseRegistrationSystem.Forms
 {
     public partial class ReportForm : Form
     {
         private DataGridView dgvReports;
-        private ComboBox cmbReportType;
-        private Button btnGenerate;
+        private RoundedButton btnStudentReport, btnCourseReport;
 
         public ReportForm()
         {
@@ -17,98 +19,90 @@ namespace StudentCourseRegistrationSystem.Forms
 
         private void InitializeComponent()
         {
-            this.Text = "System Reports";
-            this.Size = new Size(850, 600);
-            this.StartPosition = FormStartPosition.CenterParent;
-            this.BackColor = Color.FromArgb(236, 240, 241);
+            this.BackColor = ThemeManager.BackgroundColor;
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.TopLevel = false;
+            this.Dock = DockStyle.Fill;
 
             var pnlTop = new Panel { Dock = DockStyle.Top, Height = 100, BackColor = Color.White };
+            var borderBottom = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = ThemeManager.BorderColor };
+            pnlTop.Controls.Add(borderBottom);
+
+            var pnlButtons = new FlowLayoutPanel { Location = new Point(30, 30), AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
+
+            btnStudentReport = new RoundedButton { Text = "Öğrenci Raporu", Width = 180, Height = 45, BorderRadius = 6, Margin = new Padding(0, 0, 15, 0) };
+            btnStudentReport.SetColors(ThemeManager.PrimaryButton, ThemeManager.PrimaryButtonHover);
             
-            var lblTitle = new Label { Text = "Generate Reports", Font = new Font("Segoe UI Semibold", 16), ForeColor = Color.FromArgb(44, 62, 80), Location = new Point(20, 20), AutoSize = true };
-            pnlTop.Controls.Add(lblTitle);
+            btnCourseReport = new RoundedButton { Text = "Ders Raporu", Width = 180, Height = 45, BorderRadius = 6 };
+            btnCourseReport.SetColors(ThemeManager.PrimaryButton, ThemeManager.PrimaryButtonHover);
 
-            Font labelFont = new Font("Segoe UI", 10);
-            Font textFont = new Font("Segoe UI", 11);
+            btnStudentReport.Click += BtnStudentReport_Click;
+            btnCourseReport.Click += BtnCourseReport_Click;
 
-            pnlTop.Controls.Add(new Label { Text = "Report Type", Font = labelFont, ForeColor = Color.Gray, Location = new Point(25, 60), AutoSize = true });
+            pnlButtons.Controls.Add(btnStudentReport);
+            pnlButtons.Controls.Add(btnCourseReport);
+            pnlTop.Controls.Add(pnlButtons);
+
+            var pnlGridWrapper = new Panel { Dock = DockStyle.Fill, Padding = new Padding(30) };
+            var pnlGridBg = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(1) };
+            pnlGridBg.Paint += (s, e) => { ControlPaint.DrawBorder(e.Graphics, pnlGridBg.ClientRectangle, ThemeManager.BorderColor, ButtonBorderStyle.Solid); };
             
-            cmbReportType = new ComboBox { Location = new Point(120, 58), Width = 250, Font = textFont, DropDownStyle = ComboBoxStyle.DropDownList };
-            cmbReportType.Items.AddRange(new string[] { "All Students", "All Courses", "Enrollments by Course" });
-            cmbReportType.SelectedIndex = 0;
-            pnlTop.Controls.Add(cmbReportType);
+            dgvReports = new DataGridView();
+            ThemeManager.StyleDataGrid(dgvReports);
+            dgvReports.Dock = DockStyle.Fill;
+            
+            pnlGridBg.Controls.Add(dgvReports);
+            pnlGridWrapper.Controls.Add(pnlGridBg);
 
-            btnGenerate = new Button
-            {
-                Text = "Generate",
-                Location = new Point(390, 57),
-                Width = 100,
-                Height = 30,
-                BackColor = Color.FromArgb(52, 152, 219),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btnGenerate.FlatAppearance.BorderSize = 0;
-            btnGenerate.Click += BtnGenerate_Click;
-            pnlTop.Controls.Add(btnGenerate);
-
-            var pnlGrid = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20) };
-            dgvReports = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                AllowUserToAddRows = false,
-                ReadOnly = true
-            };
-            StyleDataGrid(dgvReports);
-            pnlGrid.Controls.Add(dgvReports);
-
-            this.Controls.Add(pnlGrid);
+            this.Controls.Add(pnlGridWrapper);
             this.Controls.Add(pnlTop);
         }
 
-        private void StyleDataGrid(DataGridView dgv)
+        private void BtnStudentReport_Click(object? sender, EventArgs e)
         {
-            dgv.BackgroundColor = Color.White;
-            dgv.BorderStyle = BorderStyle.None;
-            dgv.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(26, 188, 156);
-            dgv.DefaultCellStyle.SelectionForeColor = Color.White;
-            dgv.DefaultCellStyle.BackColor = Color.White;
-            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 10);
-            dgv.RowHeadersVisible = false;
-            dgv.EnableHeadersVisualStyles = false;
-            dgv.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
-            dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(44, 62, 80);
-            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 10);
-            dgv.ColumnHeadersHeight = 40;
-            dgv.RowTemplate.Height = 35;
+            try
+            {
+                using (var context = new AppDbContext())
+                {
+                    var service = new ReportService(context);
+                    var report = service.GetStudentReport();
+                    
+                    dgvReports.DataSource = report.Select(r => new {
+                        ÖğrenciNo = r.StudentNumber,
+                        AdSoyad = r.FullName,
+                        Bölüm = r.DepartmentName,
+                        KayıtlıDersSayısı = r.TotalEnrolledCourses
+                    }).ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Rapor yüklenirken hata oluştu: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
-        private void BtnGenerate_Click(object sender, EventArgs e)
+        private void BtnCourseReport_Click(object? sender, EventArgs e)
         {
-            dgvReports.Rows.Clear();
-            dgvReports.Columns.Clear();
-            
-            if (cmbReportType.Text == "All Students")
+            try
             {
-                dgvReports.Columns.Add("ID", "ID");
-                dgvReports.Columns.Add("Name", "Name");
-                dgvReports.Rows.Add("1", "John Doe");
+                using (var context = new AppDbContext())
+                {
+                    var service = new ReportService(context);
+                    var report = service.GetCourseReport(null);
+                    
+                    dgvReports.DataSource = report.Select(r => new {
+                        DersKodu = r.CourseCode,
+                        DersAdı = r.Title,
+                        Eğitmen = r.InstructorName,
+                        Kapasite = r.Capacity,
+                        MevcutKayıt = r.CurrentEnrollment,
+                        BoşKontenjan = r.AvailableSpots
+                    }).ToList();
+                }
             }
-            else if (cmbReportType.Text == "All Courses")
+            catch (Exception ex)
             {
-                dgvReports.Columns.Add("ID", "ID");
-                dgvReports.Columns.Add("CourseName", "Course Name");
-                dgvReports.Rows.Add("101", "C# Programming");
-            }
-            else if (cmbReportType.Text == "Enrollments by Course")
-            {
-                dgvReports.Columns.Add("StudentName", "Student Name");
-                dgvReports.Columns.Add("CourseName", "Course Name");
-                dgvReports.Rows.Add("John Doe", "C# Programming");
+                MessageBox.Show("Rapor yüklenirken hata oluştu: " + ex.Message, "Hata", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

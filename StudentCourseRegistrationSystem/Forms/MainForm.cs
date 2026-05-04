@@ -1,122 +1,222 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using StudentCourseRegistrationSystem.Helpers;
 
 namespace StudentCourseRegistrationSystem.Forms
 {
     public partial class MainForm : Form
     {
         private Panel pnlContent;
+        private Panel panelMenu;
+        private Label lblHeaderTitle;
+        private Button activeBtn = null;
+        private Form activeForm = null;
 
         public MainForm()
         {
-            InitializeComponent();
+            BuildWindow();
+            BuildSidebar();
+            BuildHeader();
+
+            if (SessionManager.IsAdmin)
+                NavigateTo(new AdminDashboardForm(), "Yönetici Paneli");
+            else if (SessionManager.IsInstructor)
+                NavigateTo(new InstructorDashboardForm(), "Eğitmen Paneli");
+            else if (SessionManager.IsStudent)
+                NavigateTo(new StudentDashboardForm(), "Öğrenci Paneli");
         }
 
-        private void InitializeComponent()
+        // ── Ana Pencere ──────────────────────────────────────────────────────────
+        private void BuildWindow()
         {
-            this.Text = "Student Course Registration System";
-            this.Size = new Size(1000, 700);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor = Color.FromArgb(236, 240, 241);
+            this.Text            = "Öğrenci Bilgi Sistemi – OBS";
+            this.Size            = new Size(1366, 820);
+            this.MinimumSize     = new Size(1100, 700);
+            this.StartPosition   = FormStartPosition.CenterScreen;
+            this.BackColor       = ThemeManager.BackgroundColor;
+            this.Font            = ThemeManager.RegularFont;
 
-            var panelMenu = new Panel
+            panelMenu = new Panel
             {
-                Dock = DockStyle.Left,
-                Width = 220,
-                BackColor = Color.FromArgb(44, 62, 80) // Dark Slate Gray
+                Dock      = DockStyle.Left,
+                Width     = 240,
+                BackColor = ThemeManager.SidebarColor
             };
 
-            var panelLogo = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 100,
-                BackColor = Color.FromArgb(34, 49, 63)
-            };
-
-            var lblLogo = new Label
-            {
-                Text = "EduSystem",
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 18, FontStyle.Bold),
-                AutoSize = false,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Dock = DockStyle.Fill
-            };
-            panelLogo.Controls.Add(lblLogo);
-            panelMenu.Controls.Add(panelLogo);
-
-            string[] buttons = { "Students", "Courses", "Enrollments", "Reports", "Logout" };
-            int yPos = 120;
-
-            foreach (var btnText in buttons)
-            {
-                var btn = new Button
-                {
-                    Text = "  " + btnText,
-                    Location = new Point(0, yPos),
-                    Width = 220,
-                    Height = 50,
-                    FlatStyle = FlatStyle.Flat,
-                    ForeColor = Color.WhiteSmoke,
-                    Font = new Font("Segoe UI", 11, FontStyle.Regular),
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    Cursor = Cursors.Hand,
-                    BackColor = Color.FromArgb(44, 62, 80)
-                };
-                btn.FlatAppearance.BorderSize = 0;
-                btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 188, 156);
-                btn.FlatAppearance.MouseDownBackColor = Color.FromArgb(22, 160, 133);
-                btn.Click += MenuButton_Click;
-                panelMenu.Controls.Add(btn);
-                yPos += 55;
-            }
-
-            pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(236, 240, 241), Padding = new Padding(20) };
-            
-            var lblWelcome = new Label 
-            { 
-                Text = "Dashboard Overview", 
-                Font = new Font("Segoe UI", 24, FontStyle.Bold), 
-                ForeColor = Color.FromArgb(44, 62, 80),
-                Location = new Point(30, 30), 
-                AutoSize = true 
-            };
-            
-            var lblSub = new Label 
-            { 
-                Text = "Welcome to the Student Course Registration System.", 
-                Font = new Font("Segoe UI", 12), 
-                ForeColor = Color.Gray,
-                Location = new Point(35, 75), 
-                AutoSize = true 
-            };
-
-            pnlContent.Controls.Add(lblWelcome);
-            pnlContent.Controls.Add(lblSub);
+            pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = ThemeManager.BackgroundColor };
 
             this.Controls.Add(pnlContent);
             this.Controls.Add(panelMenu);
         }
 
-        private void MenuButton_Click(object sender, EventArgs e)
+        // ── Üst Header ───────────────────────────────────────────────────────────
+        private void BuildHeader()
         {
-            var btn = sender as Button;
-            Form frm = null;
+            var header = new Panel { Dock = DockStyle.Top, Height = 62, BackColor = ThemeManager.CardBackground };
+            header.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = ThemeManager.BorderColor });
 
-            switch (btn.Text.Trim())
+            lblHeaderTitle = new Label
             {
-                case "Students": frm = new StudentForm(); break;
-                case "Courses": frm = new CourseForm(); break;
-                case "Enrollments": frm = new EnrollmentForm(); break;
-                case "Reports": frm = new ReportForm(); break;
-                case "Logout": this.Close(); return;
+                Text      = "",
+                Font      = ThemeManager.TitleFont,
+                ForeColor = ThemeManager.TextPrimary,
+                AutoSize  = false,
+                Dock      = DockStyle.Left,
+                Width     = 600,
+                Padding   = new Padding(28, 0, 0, 0),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            var roleText  = $"👤  {SessionManager.CurrentUser?.Username}  ·  {SessionManager.CurrentUser?.Role?.Name}";
+            var dateText  = DateTime.Now.ToString("dd MMMM yyyy");
+
+            var pnlRight = new Panel
+            {
+                Dock      = DockStyle.Right,
+                Width     = 320,
+                BackColor = ThemeManager.CardBackground,
+                Padding   = new Padding(0, 10, 24, 0) // Sağdan padding
+            };
+            var lblUser = new Label { Text = roleText, Font = ThemeManager.RegularFont, ForeColor = ThemeManager.TextPrimary, AutoSize = false, Height = 26, Dock = DockStyle.Top, TextAlign = ContentAlignment.MiddleRight };
+            var lblDate = new Label { Text = dateText, Font = ThemeManager.SmallFont,   ForeColor = ThemeManager.TextSecondary, AutoSize = false, Height = 20, Dock = DockStyle.Top, TextAlign = ContentAlignment.MiddleRight };
+
+            pnlRight.Controls.Add(lblDate); // Tersten ekliyoruz çünkü Dock.Top
+            pnlRight.Controls.Add(lblUser);
+
+            header.Controls.Add(lblHeaderTitle);
+            header.Controls.Add(pnlRight);
+
+            pnlContent.Controls.Add(header);
+        }
+
+        // ── Sidebar ──────────────────────────────────────────────────────────────
+        private void BuildSidebar()
+        {
+            // Logo
+            var pnlLogo = new Panel { Dock = DockStyle.Top, Height = 75, BackColor = ThemeManager.SidebarColor };
+            var lblLogo = new Label
+            {
+                Text      = "OBS Portal",
+                Font      = new Font("Segoe UI", 16, FontStyle.Bold),
+                ForeColor = Color.White,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            pnlLogo.Controls.Add(lblLogo);
+            panelMenu.Controls.Add(pnlLogo);
+
+            // Separator
+            panelMenu.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 1, BackColor = ThemeManager.SidebarHover });
+
+            // Menü öğeleri
+            var menuPanel = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Top,
+                AutoSize      = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents  = false,
+                Padding       = new Padding(12, 10, 12, 0)
+            };
+
+            foreach (var (icon, text, action) in BuildMenuItems())
+            {
+                var btn = MakeSidebarButton(icon, text, action);
+                menuPanel.Controls.Add(btn);
             }
 
-            if (frm != null)
+            panelMenu.Controls.Add(menuPanel);
+
+            // Çıkış — alta yapışık
+            var pnlLogout = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = ThemeManager.SidebarColor, Padding = new Padding(12, 10, 12, 10) };
+            pnlLogout.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 1, BackColor = ThemeManager.SidebarHover, Location = new Point(0, 0) });
+
+            var btnLogout = MakeSidebarButton("🚪", "Çıkış Yap", () => { SessionManager.Logout(); this.Close(); });
+            btnLogout.ForeColor = Color.FromArgb(252, 165, 165);
+            btnLogout.Dock = DockStyle.Fill;
+            pnlLogout.Controls.Add(btnLogout);
+
+            panelMenu.Controls.Add(pnlLogout);
+        }
+
+        private Button MakeSidebarButton(string icon, string text, Action action)
+        {
+            var btn = new Button
             {
-                frm.ShowDialog();
-            }
+                Text      = $"  {icon}  {text}",
+                Width     = 216,
+                Height    = 44,
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = ThemeManager.TextLight,
+                Font      = ThemeManager.RegularFont,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Cursor    = Cursors.Hand,
+                BackColor = ThemeManager.SidebarColor,
+                Margin    = new Padding(0, 2, 0, 2)
+            };
+            btn.FlatAppearance.BorderSize        = 0;
+            btn.FlatAppearance.MouseOverBackColor = ThemeManager.SidebarHover;
+
+            btn.Click += (s, e) =>
+            {
+                // Aktif butonu vurgula
+                if (activeBtn != null)
+                {
+                    activeBtn.BackColor = ThemeManager.SidebarColor;
+                    activeBtn.ForeColor = ThemeManager.TextLight;
+                }
+                activeBtn = btn;
+                btn.BackColor = ThemeManager.SidebarHover;
+                btn.ForeColor = Color.White;
+                action?.Invoke();
+            };
+            return btn;
+        }
+
+        private (string icon, string text, Action action)[] BuildMenuItems()
+        {
+            if (SessionManager.IsAdmin)
+                return new[]
+                {
+                    ("🏠", "Ana Sayfa",          (Action)(() => NavigateTo(new AdminDashboardForm(),  "Yönetici Paneli"))),
+                    ("🎓", "Öğrenci Yönetimi",   (Action)(() => NavigateTo(new StudentForm(),         "Öğrenci Yönetimi"))),
+                    ("👨‍🏫","Öğretmen Yönetimi",  (Action)(() => NavigateTo(new InstructorForm(),      "Öğretmen Yönetimi"))),
+                    ("📚", "Ders Yönetimi",       (Action)(() => NavigateTo(new CourseForm(),          "Ders Yönetimi"))),
+                    ("📝", "Kayıt İşlemleri",    (Action)(() => NavigateTo(new EnrollmentForm(),      "Kayıt İşlemleri"))),
+                    ("🏅", "Not Girişi",          (Action)(() => NavigateTo(new GradeEntryForm(),      "Not Girişi"))),
+                    ("📊", "Raporlar",            (Action)(() => NavigateTo(new ReportForm(),          "Raporlar"))),
+                };
+            else if (SessionManager.IsInstructor)
+                return new[]
+                {
+                    ("🏠", "Ana Sayfa",   (Action)(() => NavigateTo(new InstructorDashboardForm(), "Eğitmen Paneli"))),
+                    ("📋", "Yoklama Al",  (Action)(() => NavigateTo(new AttendanceForm(),          "Yoklama Yönetimi"))),
+                    ("🏅", "Not Girişi", (Action)(() => NavigateTo(new GradeEntryForm(),          "Not Girişi"))),
+                    ("🔒", "Şifre Değiştir", (Action)(() => NavigateTo(new ChangePasswordForm(), "Şifre Değiştir"))),
+                };
+            else
+                return new[]
+                {
+                    ("🏠", "Ana Sayfa",         (Action)(() => NavigateTo(new StudentDashboardForm(),  "Öğrenci Paneli"))),
+                    ("👤", "Profilim",           (Action)(() => NavigateTo(new StudentProfileForm(),    "Profilim & Program"))),
+                    ("📚", "Ders Seçimi",        (Action)(() => NavigateTo(new CourseSelectionForm(),   "Ders Seçimi"))),
+                    ("📋", "Transkript",         (Action)(() => NavigateTo(new TranscriptForm(),         "Transkript"))),
+                    ("🔒", "Şifre Değiştir",    (Action)(() => NavigateTo(new ChangePasswordForm(),    "Şifre Değiştir"))),
+                };
+        }
+
+        // ── Sayfa Geçişi ─────────────────────────────────────────────────────────
+        public void NavigateTo(Form frm, string title)
+        {
+            activeForm?.Close();
+            activeForm = frm;
+            frm.TopLevel        = false;
+            frm.FormBorderStyle = FormBorderStyle.None;
+            frm.Dock            = DockStyle.Fill;
+            pnlContent.Controls.Add(frm);
+            pnlContent.Controls.SetChildIndex(frm, 0);
+            if (lblHeaderTitle != null) lblHeaderTitle.Text = title;
+            frm.Show();
         }
     }
 }

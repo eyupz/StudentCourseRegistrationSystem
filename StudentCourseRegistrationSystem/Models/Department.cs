@@ -14,6 +14,9 @@ namespace StudentCourseRegistrationSystem.Models
         [MaxLength(10)]
         public string Code { get; set; }
 
+        [MaxLength(100)]
+        public string Faculty { get; set; } // Added for extended student info
+
         // Navigation properties
         public virtual ICollection<Student> Students { get; set; } = new List<Student>();
         public virtual ICollection<Course> Courses { get; set; } = new List<Course>();

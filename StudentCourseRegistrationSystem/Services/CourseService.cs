@@ -70,10 +70,11 @@ namespace StudentCourseRegistrationSystem.Services
             existingCourse.Title = course.Title;
             existingCourse.Credits = course.Credits;
             existingCourse.Capacity = course.Capacity;
+            existingCourse.Schedule = course.Schedule;
+            existingCourse.PrerequisiteCourseId = course.PrerequisiteCourseId;
             existingCourse.DepartmentId = course.DepartmentId;
             existingCourse.InstructorId = course.InstructorId;
 
-            _context.Courses.Update(existingCourse);
             _context.SaveChanges();
         }
 

@@ -1,117 +1,134 @@
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
+using StudentCourseRegistrationSystem.Data;
+using StudentCourseRegistrationSystem.Helpers;
+using StudentCourseRegistrationSystem.Models;
+using StudentCourseRegistrationSystem.Services;
 
 namespace StudentCourseRegistrationSystem.Forms
 {
     public partial class EnrollmentForm : Form
     {
+        private DataGridView dgv;
         private ComboBox cmbStudent, cmbCourse, cmbSemester;
-        private Button btnEnroll, btnDrop;
-        private DataGridView dgvEnrollments;
 
         public EnrollmentForm()
         {
-            InitializeComponent();
-            LoadData();
+            this.BackColor = ThemeManager.BackgroundColor; this.FormBorderStyle = FormBorderStyle.None;
+            this.TopLevel = false; this.Dock = DockStyle.Fill;
+            Build(); LoadCombos(); LoadData();
         }
 
-        private void InitializeComponent()
+        private void Build()
         {
-            this.Text = "Manage Enrollments";
-            this.Size = new Size(850, 600);
-            this.StartPosition = FormStartPosition.CenterParent;
-            this.BackColor = Color.FromArgb(236, 240, 241);
+            var bar = FormHelper.FilterBar(120);
+            var flow = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
 
-            var pnlInputs = new Panel { Dock = DockStyle.Top, Height = 180, BackColor = Color.White };
-            
-            var lblTitle = new Label { Text = "Enrollment Details", Font = new Font("Segoe UI Semibold", 16), ForeColor = Color.FromArgb(44, 62, 80), Location = new Point(20, 20), AutoSize = true };
-            pnlInputs.Controls.Add(lblTitle);
-
-            Font labelFont = new Font("Segoe UI", 10);
-            Font textFont = new Font("Segoe UI", 11);
-
-            pnlInputs.Controls.Add(new Label { Text = "Student", Font = labelFont, ForeColor = Color.Gray, Location = new Point(25, 70), AutoSize = true });
-            cmbStudent = new ComboBox { Location = new Point(25, 95), Width = 200, Font = textFont, DropDownStyle = ComboBoxStyle.DropDownList };
-            pnlInputs.Controls.Add(cmbStudent);
-
-            pnlInputs.Controls.Add(new Label { Text = "Course", Font = labelFont, ForeColor = Color.Gray, Location = new Point(245, 70), AutoSize = true });
-            cmbCourse = new ComboBox { Location = new Point(245, 95), Width = 200, Font = textFont, DropDownStyle = ComboBoxStyle.DropDownList };
-            pnlInputs.Controls.Add(cmbCourse);
-
-            pnlInputs.Controls.Add(new Label { Text = "Semester", Font = labelFont, ForeColor = Color.Gray, Location = new Point(465, 70), AutoSize = true });
-            cmbSemester = new ComboBox { Location = new Point(465, 95), Width = 150, Font = textFont, DropDownStyle = ComboBoxStyle.DropDownList };
-            pnlInputs.Controls.Add(cmbSemester);
-
-            btnEnroll = CreateButton("Enroll", new Point(25, 140), Color.FromArgb(26, 188, 156));
-            btnDrop = CreateButton("Drop", new Point(135, 140), Color.FromArgb(231, 76, 60));
-
-            pnlInputs.Controls.Add(btnEnroll);
-            pnlInputs.Controls.Add(btnDrop);
-
-            var pnlGrid = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20) };
-            dgvEnrollments = new DataGridView
+            void Field(string lbl, ComboBox cmb, int w = 230)
             {
-                Dock = DockStyle.Fill,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                AllowUserToAddRows = false,
-                ReadOnly = true
-            };
-            StyleDataGrid(dgvEnrollments);
-            pnlGrid.Controls.Add(dgvEnrollments);
+                var col = new Panel { AutoSize = false, Width = w, Height = 80, Margin = new Padding(0, 0, 20, 0) };
+                col.Controls.Add(new Label { Text = lbl, Font = ThemeManager.LabelFont, ForeColor = ThemeManager.TextSecondary, AutoSize = true, Location = new Point(0, 0) });
+                cmb.Width = w - 8; cmb.Location = new Point(0, 22);
+                col.Controls.Add(cmb); flow.Controls.Add(col);
+            }
+
+            cmbStudent  = new ComboBox(); ThemeManager.StyleComboBox(cmbStudent);
+            cmbCourse   = new ComboBox(); ThemeManager.StyleComboBox(cmbCourse);
+            cmbSemester = new ComboBox(); ThemeManager.StyleComboBox(cmbSemester);
+
+            Field("Öğrenci", cmbStudent,  240);
+            Field("Ders",    cmbCourse,   260);
+            Field("Dönem",   cmbSemester, 200);
+
+            var btnCol = new Panel { AutoSize = false, Width = 320, Height = 80 };
+            btnCol.Controls.Add(new Label { Text = "İşlem", Font = ThemeManager.LabelFont, ForeColor = ThemeManager.TextSecondary, AutoSize = true, Location = new Point(0, 0) });
+            var btnFlow = new FlowLayoutPanel { Location = new Point(0, 22), AutoSize = true };
+
+            var btnEnroll = new RoundedButton { Text = "✔ Kayıt Yap",  Width = 130, Height = 34, BorderRadius = 6, Margin = new Padding(0, 0, 10, 0) };
+            btnEnroll.SetColors(ThemeManager.SuccessButton, ThemeManager.SuccessButtonHover);
+            btnEnroll.Click += BtnEnroll_Click;
+
+            var btnDrop = new RoundedButton { Text = "✖ Dersi Bırak", Width = 140, Height = 34, BorderRadius = 6 };
+            btnDrop.SetColors(ThemeManager.DangerButton, ThemeManager.DangerButtonHover);
+            btnDrop.Click += BtnDrop_Click;
+
+            btnFlow.Controls.Add(btnEnroll);
+            btnFlow.Controls.Add(btnDrop);
+            btnCol.Controls.Add(btnFlow);
+            flow.Controls.Add(btnCol);
+            bar.Controls.Add(flow);
+
+            dgv = new DataGridView(); ThemeManager.StyleDataGrid(dgv); dgv.Dock = DockStyle.Fill;
+
+            var pnlGrid = new Panel { Dock = DockStyle.Fill, BackColor = ThemeManager.BackgroundColor, Padding = new Padding(16) };
+            pnlGrid.Controls.Add(dgv);
 
             this.Controls.Add(pnlGrid);
-            this.Controls.Add(pnlInputs);
+            this.Controls.Add(bar);
         }
 
-        private Button CreateButton(string text, Point location, Color backColor)
+        private void LoadCombos()
         {
-            var btn = new Button
+            try
             {
-                Text = text,
-                Location = location,
-                Width = 100,
-                Height = 30,
-                BackColor = backColor,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btn.FlatAppearance.BorderSize = 0;
-            return btn;
-        }
+                using var ctx = new AppDbContext();
+                var students = ctx.Students.ToList();
+                cmbStudent.DataSource = students; cmbStudent.DisplayMember = "FirstName"; cmbStudent.ValueMember = "Id";
 
-        private void StyleDataGrid(DataGridView dgv)
-        {
-            dgv.BackgroundColor = Color.White;
-            dgv.BorderStyle = BorderStyle.None;
-            dgv.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            dgv.DefaultCellStyle.SelectionBackColor = Color.FromArgb(26, 188, 156);
-            dgv.DefaultCellStyle.SelectionForeColor = Color.White;
-            dgv.DefaultCellStyle.BackColor = Color.White;
-            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 10);
-            dgv.RowHeadersVisible = false;
-            dgv.EnableHeadersVisualStyles = false;
-            dgv.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
-            dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(44, 62, 80);
-            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI Semibold", 10);
-            dgv.ColumnHeadersHeight = 40;
-            dgv.RowTemplate.Height = 35;
+                var courses = ctx.Courses.ToList();
+                cmbCourse.DataSource = courses; cmbCourse.DisplayMember = "Title"; cmbCourse.ValueMember = "Id";
+
+                var semesters = ctx.Semesters.ToList();
+                cmbSemester.DataSource = semesters; cmbSemester.DisplayMember = "Name"; cmbSemester.ValueMember = "Id";
+
+                var active = semesters.FirstOrDefault(s => s.IsActive);
+                if (active != null) cmbSemester.SelectedValue = active.Id;
+            }
+            catch (Exception ex) { ErrorHelper.Show(ex, "Combolar yüklenirken"); }
         }
 
         private void LoadData()
         {
-            cmbStudent.Items.Add("John Doe");
-            cmbCourse.Items.Add("C# Programming");
-            cmbSemester.Items.Add("Fall 2026");
+            try
+            {
+                using var ctx = new AppDbContext();
+                dgv.DataSource = new EnrollmentService(ctx).GetAllEnrollments().Select(e => new {
+                    Id      = e.Id,
+                    Öğrenci = $"{e.Student?.FirstName} {e.Student?.LastName}",
+                    Ders    = e.Course?.Title,
+                    Dönem   = e.Semester?.Name,
+                    Not     = e.Grade ?? "—",
+                    Durum   = e.Status == EnrollmentStatus.Enrolled ? "Devam" :
+                              e.Status == EnrollmentStatus.Completed ? "Tamamlandı" : "Bırakıldı"
+                }).ToList();
+                if (dgv.Columns["Id"] != null) dgv.Columns["Id"].Visible = false;
+            }
+            catch (Exception ex) { ErrorHelper.Show(ex, "Kayıtlar yüklenirken"); }
+        }
 
-            dgvEnrollments.ColumnCount = 3;
-            dgvEnrollments.Columns[0].Name = "Student";
-            dgvEnrollments.Columns[1].Name = "Course";
-            dgvEnrollments.Columns[2].Name = "Semester";
+        private void BtnEnroll_Click(object sender, EventArgs e)
+        {
+            if (cmbStudent.SelectedValue == null || cmbCourse.SelectedValue == null || cmbSemester.SelectedValue == null)
+            { ErrorHelper.ShowWarning("Öğrenci, ders ve dönem seçmelisiniz."); return; }
+            try
+            {
+                using var ctx = new AppDbContext();
+                new EnrollmentService(ctx).Enroll((int)cmbStudent.SelectedValue, (int)cmbCourse.SelectedValue, (int)cmbSemester.SelectedValue);
+                LoadData();
+                MessageBox.Show("Kayıt başarılı.", "Başarılı", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (InvalidOperationException ex) { ErrorHelper.ShowWarning(ex.Message); }
+            catch (Exception ex) { ErrorHelper.Show(ex, "Kayıt yapılırken"); }
+        }
+
+        private void BtnDrop_Click(object sender, EventArgs e)
+        {
+            if (dgv.SelectedRows.Count == 0 || !int.TryParse(dgv.SelectedRows[0].Cells["Id"].Value?.ToString(), out int id)) return;
+            if (MessageBox.Show("Dersi bırakmak istiyor musunuz?", "Onay", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            try { using var ctx = new AppDbContext(); new EnrollmentService(ctx).Drop(id); LoadData(); }
+            catch (Exception ex) { ErrorHelper.Show(ex, "Ders bırakılırken"); }
         }
     }
 }
