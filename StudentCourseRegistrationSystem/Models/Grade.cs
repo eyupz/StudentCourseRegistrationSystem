@@ -11,8 +11,8 @@ namespace StudentCourseRegistrationSystem.Models
         [Range(0, 100)]
         public double? Score { get; set; }
         
-        [MaxLength(2)]
-        public string LetterGrade { get; set; } // e.g., AA, BA, BB, etc.
+        [MaxLength(10)]
+        public string LetterGrade { get; set; } // Örn: AA, BA, BB, CB, CC, DC, DD, FD, FF
 
         // Navigation properties
         public virtual Enrollment Enrollment { get; set; }

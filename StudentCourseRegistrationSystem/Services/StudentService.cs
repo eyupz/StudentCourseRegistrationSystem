@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using StudentCourseRegistrationSystem.Data;
+using StudentCourseRegistrationSystem.Helpers;
 using StudentCourseRegistrationSystem.Models;
 
 namespace StudentCourseRegistrationSystem.Services
@@ -35,66 +36,149 @@ namespace StudentCourseRegistrationSystem.Services
         public Student GetStudentByNumber(string studentNumber)
         {
             if (string.IsNullOrWhiteSpace(studentNumber)) return null;
-
             return _context.Students
                 .Include(s => s.Department)
                 .Include(s => s.User)
                 .SingleOrDefault(s => s.StudentNumber == studentNumber);
         }
 
-        public void AddStudent(Student student)
+        public ServiceResult AddStudent(Student student)
         {
-            if (student == null) throw new ArgumentNullException(nameof(student));
-            if (string.IsNullOrWhiteSpace(student.StudentNumber)) throw new ArgumentException("Student number is required.");
-            if (string.IsNullOrWhiteSpace(student.FirstName)) throw new ArgumentException("First name is required.");
-            if (string.IsNullOrWhiteSpace(student.LastName)) throw new ArgumentException("Last name is required.");
-            
-            if (_context.Students.Any(s => s.StudentNumber == student.StudentNumber))
-                throw new InvalidOperationException("A student with this student number already exists.");
+            try
+            {
+                if (student == null)
+                    return ServiceResult.Failure("Öğrenci nesnesi boş olamaz.");
+                if (string.IsNullOrWhiteSpace(student.FirstName))
+                    return ServiceResult.Failure("Ad alanı zorunludur.");
+                if (string.IsNullOrWhiteSpace(student.LastName))
+                    return ServiceResult.Failure("Soyad alanı zorunludur.");
+                if (student.DepartmentId <= 0 || !_context.Departments.Any(d => d.Id == student.DepartmentId))
+                    return ServiceResult.Failure("Geçerli bir bölüm seçilmelidir.");
 
-            _context.Students.Add(student);
-            _context.SaveChanges();
+                // Öğrenci numarası üret
+                var dept = _context.Departments.Find(student.DepartmentId);
+                string deptCode = string.IsNullOrWhiteSpace(dept.Code) ? "00" : dept.Code;
+                string prefix = $"26{deptCode}";
+
+                var lastStudent = _context.Students
+                    .Where(s => s.StudentNumber != null && s.StudentNumber.StartsWith(prefix))
+                    .OrderByDescending(s => s.StudentNumber)
+                    .FirstOrDefault();
+
+                int seq = 1001;
+                if (lastStudent != null && lastStudent.StudentNumber.Length >= prefix.Length + 4)
+                {
+                    if (int.TryParse(lastStudent.StudentNumber.Substring(prefix.Length), out int lastSeq))
+                        seq = lastSeq + 1;
+                }
+                student.StudentNumber = $"{prefix}{seq}";
+
+                _context.Students.Add(student);
+                _context.SaveChanges();
+
+                // Kullanıcı hesabı oluştur
+                var studentRole = _context.Roles.FirstOrDefault(r => r.Name == "Student");
+                if (studentRole != null)
+                {
+                    string username = StringHelper.ConvertToEnglishLowercase(student.FirstName + student.LastName);
+                    int count = 1;
+                    string baseUsername = username;
+                    while (_context.Users.Any(u => u.Username == username))
+                    {
+                        username = baseUsername + count;
+                        count++;
+                    }
+
+                    string firstInitial = student.FirstName.Substring(0, 1).ToLower();
+                    string lastInitial = student.LastName.Substring(0, 1).ToLower();
+                    string rawPassword = $"{firstInitial}{lastInitial}123";
+
+                    _context.Users.Add(new User
+                    {
+                        Username = username,
+                        PasswordHash = PasswordHelper.HashPassword(rawPassword),
+                        Email = $"{username}@student.edu.tr",
+                        RoleId = studentRole.Id,
+                        StudentId = student.Id
+                    });
+                    _context.SaveChanges();
+                }
+
+                return ServiceResult.SuccessResult($"Öğrenci başarıyla eklendi. Numara: {student.StudentNumber}");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult.Failure(ErrorHelper.GetDbUpdateErrorMessage(ex));
+            }
         }
 
-        public void UpdateStudent(Student student)
+        public ServiceResult UpdateStudent(Student student)
         {
-            if (student == null) throw new ArgumentNullException(nameof(student));
-            
-            var existingStudent = _context.Students.Find(student.Id);
-            if (existingStudent == null) throw new InvalidOperationException("Student not found.");
+            try
+            {
+                if (student == null)
+                    return ServiceResult.Failure("Öğrenci nesnesi boş olamaz.");
+                if (string.IsNullOrWhiteSpace(student.StudentNumber))
+                    return ServiceResult.Failure("Öğrenci numarası zorunludur.");
+                if (string.IsNullOrWhiteSpace(student.FirstName))
+                    return ServiceResult.Failure("Ad alanı zorunludur.");
+                if (string.IsNullOrWhiteSpace(student.LastName))
+                    return ServiceResult.Failure("Soyad alanı zorunludur.");
+                if (student.DepartmentId <= 0 || !_context.Departments.Any(d => d.Id == student.DepartmentId))
+                    return ServiceResult.Failure("Geçerli bir bölüm seçilmelidir.");
 
-            existingStudent.FirstName = student.FirstName;
-            existingStudent.LastName = student.LastName;
-            existingStudent.DepartmentId = student.DepartmentId;
-            // StudentNumber typically shouldn't be changed, but if needed, we'd verify uniqueness here
+                var existing = _context.Students.Find(student.Id);
+                if (existing == null)
+                    return ServiceResult.Failure("Öğrenci bulunamadı.");
 
-            _context.Students.Update(existingStudent);
-            _context.SaveChanges();
+                if (existing.StudentNumber != student.StudentNumber &&
+                    _context.Students.Any(s => s.StudentNumber == student.StudentNumber))
+                    return ServiceResult.Failure("Bu öğrenci numarasıyla kayıtlı başka bir öğrenci var.");
+
+                existing.StudentNumber = student.StudentNumber;
+                existing.FirstName = student.FirstName;
+                existing.LastName = student.LastName;
+                existing.DepartmentId = student.DepartmentId;
+
+                _context.SaveChanges();
+                return ServiceResult.SuccessResult("Öğrenci başarıyla güncellendi.");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult.Failure(ErrorHelper.GetDbUpdateErrorMessage(ex));
+            }
         }
 
-        public void DeleteStudent(int id)
+        public ServiceResult DeleteStudent(int id)
         {
-            var student = _context.Students.Find(id);
-            if (student == null) throw new InvalidOperationException("Student not found.");
+            try
+            {
+                var student = _context.Students.Find(id);
+                if (student == null)
+                    return ServiceResult.Failure("Öğrenci bulunamadı.");
 
-            _context.Students.Remove(student);
-            _context.SaveChanges();
+                _context.Students.Remove(student);
+                _context.SaveChanges();
+                return ServiceResult.SuccessResult("Öğrenci başarıyla silindi.");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult.Failure(ErrorHelper.GetDbUpdateErrorMessage(ex));
+            }
         }
 
         public List<Student> SearchStudents(string searchTerm)
         {
             if (string.IsNullOrWhiteSpace(searchTerm)) return GetAllStudents();
-
             searchTerm = searchTerm.ToLower();
-
             return _context.Students
                 .Include(s => s.Department)
                 .Include(s => s.User)
-                .Where(s => 
-                    s.StudentNumber.ToLower().Contains(searchTerm) ||
+                .Where(s =>
+                    (s.StudentNumber != null && s.StudentNumber.ToLower().Contains(searchTerm)) ||
                     s.FirstName.ToLower().Contains(searchTerm) ||
                     s.LastName.ToLower().Contains(searchTerm) ||
-                    s.Department.Name.ToLower().Contains(searchTerm))
+                    (s.Department != null && s.Department.Name.ToLower().Contains(searchTerm)))
                 .ToList();
         }
     }

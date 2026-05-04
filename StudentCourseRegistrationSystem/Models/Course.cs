@@ -20,7 +20,7 @@ namespace StudentCourseRegistrationSystem.Models
         public int Capacity { get; set; }
 
         public int DepartmentId { get; set; }
-        public int InstructorId { get; set; }
+        public int? InstructorId { get; set; }
 
         // Navigation properties
         public virtual Department Department { get; set; }

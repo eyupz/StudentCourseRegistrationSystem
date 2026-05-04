@@ -9,6 +9,7 @@ namespace StudentCourseRegistrationSystem.Models
         public int StudentId { get; set; }
         public int CourseId { get; set; }
         public int SemesterId { get; set; }
+        
 
         // Navigation properties
         public virtual Student Student { get; set; }

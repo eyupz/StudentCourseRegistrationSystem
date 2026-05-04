@@ -19,9 +19,7 @@ namespace StudentCourseRegistrationSystem.Services
         public User Login(string username, string password)
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-            {
-                throw new ArgumentException("Username and password are required.");
-            }
+                throw new ArgumentException("Kullanıcı adı ve şifre zorunludur.");
 
             var user = _context.Users
                 .Include(u => u.Role)
@@ -48,15 +46,45 @@ namespace StudentCourseRegistrationSystem.Services
 
         public bool IsUserActive(User user)
         {
-            // Since there is no 'IsActive' flag in User model, we'll assume they are active if they exist in DB
             if (user == null) return false;
-
+            // Kullanıcı DB'de varsa aktif kabul edilir
             return _context.Users.Any(u => u.Id == user.Id);
         }
         
         public void Logout()
         {
             SessionManager.Logout();
+        }
+
+        public void ChangePassword(string oldPassword, string newPassword)
+        {
+            var user = SessionManager.CurrentUser;
+            if (user == null) throw new InvalidOperationException("Aktif oturum bulunamadı.");
+            if (string.IsNullOrWhiteSpace(oldPassword) || string.IsNullOrWhiteSpace(newPassword)) 
+                throw new ArgumentException("Şifre boş olamaz.");
+
+            var dbUser = _context.Users.Find(user.Id);
+            if (dbUser == null) throw new InvalidOperationException("Kullanıcı bulunamadı.");
+
+            if (!PasswordHelper.VerifyPassword(oldPassword, dbUser.PasswordHash))
+                throw new InvalidOperationException("Eski şifre yanlış.");
+
+            dbUser.PasswordHash = PasswordHelper.HashPassword(newPassword);
+            _context.Users.Update(dbUser);
+            _context.SaveChanges();
+            
+            // Oturum kullanıcısını güncelle
+            SessionManager.CurrentUser.PasswordHash = dbUser.PasswordHash;
+        }
+
+        public void ResetUserPassword(int userId, string newPassword)
+        {
+            var dbUser = _context.Users.Find(userId);
+            if (dbUser == null) throw new InvalidOperationException("Kullanıcı bulunamadı.");
+            
+            dbUser.PasswordHash = PasswordHelper.HashPassword(newPassword);
+            _context.Users.Update(dbUser);
+            _context.SaveChanges();
         }
     }
 }

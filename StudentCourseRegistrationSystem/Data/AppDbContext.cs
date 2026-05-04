@@ -103,12 +103,13 @@ namespace StudentCourseRegistrationSystem.Data
                 .HasForeignKey(c => c.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Instructor 1 - N Courses
+            // Instructor 1 - N Courses (Dersç görevsiz de olabilir)
             modelBuilder.Entity<Course>()
                 .HasOne(c => c.Instructor)
                 .WithMany(i => i.Courses)
                 .HasForeignKey(c => c.InstructorId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // Student 1 - N Enrollments
             modelBuilder.Entity<Enrollment>()
